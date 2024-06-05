@@ -14,6 +14,10 @@ import argparse
 from models import *
 from utils import progress_bar
 
+import agm_optimizer as agm
+import numpy as np
+
+
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -55,7 +59,7 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer',
 # Model
 print('==> Building model..')
 # net = VGG('VGG19')
-# net = ResNet18()
+net = ResNet18()
 # net = PreActResNet18()
 # net = GoogLeNet()
 # net = DenseNet121()
@@ -68,7 +72,7 @@ print('==> Building model..')
 # net = ShuffleNetV2(1)
 # net = EfficientNetB0()
 # net = RegNetX_200MF()
-net = SimpleDLA()
+# net = SimpleDLA()
 net = net.to(device)
 if device == 'cuda':
     net = torch.nn.DataParallel(net)
@@ -84,9 +88,22 @@ if args.resume:
     start_epoch = checkpoint['epoch']
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=args.lr,
-                      momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+# optimizer = optim.SGD(net.parameters(), lr=args.lr,
+                    #   momentum=0.9, weight_decay=5e-4)
+optimizer = agm.AGM(net.parameters(), lr_tau=0.001, lr_eta=0.01, lr_alpha=0.01)
+# scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+
+#results 
+global train_acc_list
+global train_loss_list
+train_acc_list = []
+train_loss_list = []
+
+global val_acc_list
+global val_loss_list
+val_acc_list = []
+val_loss_list = []
+
 
 
 # Training
@@ -96,6 +113,8 @@ def train(epoch):
     train_loss = 0
     correct = 0
     total = 0
+
+
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
@@ -112,6 +131,11 @@ def train(epoch):
         progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                      % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
+    acc_final = 100.*correct/total
+    loss_final = train_loss/(batch_idx+1)
+    train_acc_list.append(acc_final)
+    train_loss_list.append(loss_final)
+
 
 def test(epoch):
     global best_acc
@@ -119,6 +143,7 @@ def test(epoch):
     test_loss = 0
     correct = 0
     total = 0
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(testloader):
             inputs, targets = inputs.to(device), targets.to(device)
@@ -147,8 +172,23 @@ def test(epoch):
         torch.save(state, './checkpoint/ckpt.pth')
         best_acc = acc
 
+    acc_final = 100.*correct/total
+    loss_final = test_loss/(batch_idx+1)
+    val_acc_list.append(acc_final)
+    val_loss_list.append(loss_final)
+
 
 for epoch in range(start_epoch, start_epoch+200):
     train(epoch)
     test(epoch)
-    scheduler.step()
+    # scheduler.step()
+
+train_loss_np = np.array(train_loss_list)
+np.save('./results/train/train_loss.npy', train_loss_np)
+train_acc_np = np.array(train_acc_list)
+np.save('./results/train/train_acc.npy', train_acc_np)
+
+val_loss_np = np.array(val_loss_list)
+np.save('./results/val/val_loss.npy', val_loss_np)
+val_acc_np = np.array(val_acc_list)
+np.save('./results/val/val_acc.npy', val_acc_np)
