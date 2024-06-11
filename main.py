@@ -17,6 +17,7 @@ from utils import progress_bar
 import agm_optimizer as agm
 import numpy as np
 
+from lion_pytorch import Lion
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -88,9 +89,12 @@ if args.resume:
     start_epoch = checkpoint['epoch']
 
 criterion = nn.CrossEntropyLoss()
-# optimizer = optim.SGD(net.parameters(), lr=args.lr,
-                    #   momentum=0.9, weight_decay=5e-4)
-optimizer = agm.AGM(net.parameters(), lr_tau=0.001, lr_eta=0.01, lr_alpha=0.01)
+
+# optimizer = Lion(net.parameters(), lr=1e-4, weight_decay=1e-2)
+# optimizer = optim.Adam(net.parameters(), lr=0.1)
+# optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+optimizer = agm.AGM(net.parameters(), lr_tau=0.001, lr_eta=0.01, lr_alpha=0.01, q=2)
+
 # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
 #results 
@@ -184,11 +188,11 @@ for epoch in range(start_epoch, start_epoch+200):
     # scheduler.step()
 
 train_loss_np = np.array(train_loss_list)
-np.save('./results/train/train_loss.npy', train_loss_np)
+np.save('./results/Euclidean_space/train/AGM_EU_train_loss.npy', train_loss_np)
 train_acc_np = np.array(train_acc_list)
-np.save('./results/train/train_acc.npy', train_acc_np)
+np.save('./results/Euclidean_space/train/AGM_EU_train_acc.npy', train_acc_np)
 
 val_loss_np = np.array(val_loss_list)
-np.save('./results/val/val_loss.npy', val_loss_np)
+np.save('./results/Euclidean_space/val/AGM_EU_val_loss.npy', val_loss_np)
 val_acc_np = np.array(val_acc_list)
-np.save('./results/val/val_acc.npy', val_acc_np)
+np.save('./results/Euclidean_space/val/AGM_EU_val_acc.npy', val_acc_np)

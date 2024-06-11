@@ -108,11 +108,19 @@ class AGM(Optimizer):
             raise ValueError("Invalid momentum value: {}".format(momentum))
         if not 0.0 <= weight_decay:
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
-        if not 2.0 <= q:
-            raise ValueError("Invalid q_norm value: {}".format(q))
+        # if not 2.0 <= q:
+        #     raise ValueError("Invalid q_norm value: {}".format(q))
 
         defaults = dict(lr_tau=lr_tau, lr_eta=lr_eta, lr_alpha=lr_alpha, momentum=momentum, weight_decay=weight_decay, dampening=dampening, q = q)
+
+        params = list(params)
+        for p in params:
+            p.zk = p.data.clone()
         super(AGM, self).__init__(params, defaults)
+
+
+
+
     
     def __setstate__(self, state):
         super(SMD_qnorm, self).__setstate__(state)
@@ -135,11 +143,12 @@ class AGM(Optimizer):
                 d_p = p.grad.data
     #           q norm potential function
                 y_p = p.data - group['lr_eta'] * d_p
-                update = (group['q'])* (torch.abs(p.data)**(group['q']-1)) * torch.sign(p.data) - group['lr_alpha'] * d_p
+                # update = (group['q'])* (torch.abs(p.data)**(group['q']-1)) * torch.sign(p.data) - group['lr_alpha'] * d_p
+                update = (group['q'])* (torch.abs(p.zk)**(group['q']-1)) * torch.sign(p.zk) - group['lr_alpha'] * d_p
                 z_p = (torch.abs(update/(group['q']))**(1/(group['q'] - 1))) * torch.sign(update)
                 p.data = group['lr_tau'] * y_p + (1 - group['lr_tau']) * z_p
 
-
+                p.zk = z_p
 
         return loss
     
